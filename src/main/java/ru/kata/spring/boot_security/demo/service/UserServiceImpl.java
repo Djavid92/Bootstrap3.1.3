@@ -19,42 +19,43 @@ public class UserServiceImpl implements UserService {
 
     private final UserDao userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RoleService roleService;
+    private final Convertor convertor;
 
     @Autowired
     public UserServiceImpl(UserDao userRepository, PasswordEncoder passwordEncoder,
-                           RoleService roleService)
+                           Convertor convertor)
     {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.roleService = roleService;
+        this.convertor = convertor;
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public User findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public User findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
 
     @Override
+    @Transactional
     public void saveUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
@@ -63,45 +64,35 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void saveUser(User user, String[] roles) {
-
-        if (user.getUsername() == null) {
-            user.setUsername(user.getEmail());
-        }
-
         if (userRepository.findByEmail(user.getEmail()) == null) {
-            Set<Role> rolestoSet = new HashSet<>();
-
-            for (String role : roles) {
-                Role newRole = new Role("ROLE_" +role);
-                roleService.saveRole(newRole);
-                rolestoSet.add(newRole);
-            }
-
-            user.setRoles(rolestoSet);
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-            userRepository.save(user);
+            userRepository.save(new User(
+                    user.getUsername(), passwordEncoder.encode(user.getPassword()),
+                    user.getName(), user.getLastname(),
+                    user.getAge(), user.getEmail(),
+                    convertor.stringToSet(roles)
+            ));
         }
     }
 
     @Override
+    @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
 
     @Override
+    @Transactional
     public void updateUser(User user, String[] roles) {
-        Set<Role> rolestoSet = new HashSet<>();
+        User userToSave = new User(
+                user.getUsername(), passwordEncoder.encode(user.getPassword()),
+                user.getName(), user.getLastname(),
+                user.getAge(), user.getEmail(),
+                convertor.stringToSet(roles)
+        );
 
-        for (String role : roles) {
-            Role newRole = new Role("ROLE_" +role);
-            roleService.saveRole(newRole);
-            rolestoSet.add(newRole);
-        }
+        userToSave.setId(user.getId());
 
-        user.setRoles(rolestoSet);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        userRepository.save(user);
+        userRepository.save(userToSave);
     }
 }
 

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import ru.kata.spring.boot_security.demo.models.Role;
 import ru.kata.spring.boot_security.demo.models.User;
 import ru.kata.spring.boot_security.demo.service.RoleService;
@@ -25,12 +26,19 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     @Override
+    @Transactional
     public void run(ApplicationArguments args) throws Exception {
-        Role userRole = new Role("ROLE_USER");
-        Role adminRole = new Role("ROLE_ADMIN");
+        Role userRole = roleService.findByRole("ROLE_USER").orElseGet(() -> {
+            Role newUserRole = new Role("ROLE_USER");
+            roleService.saveRole(newUserRole);
+            return newUserRole;
+        });
 
-        roleService.saveRole(userRole);
-        roleService.saveRole(adminRole);
+        Role adminRole = roleService.findByRole("ROLE_ADMIN").orElseGet(() -> {
+            Role newAdminRole = new Role("ROLE_ADMIN");
+            roleService.saveRole(newAdminRole);
+            return newAdminRole;
+        });
 
         if (userService.findByUsername("user") == null) {
             Set<Role> userRoles = new HashSet<>();
@@ -48,15 +56,6 @@ public class DataInitializer implements ApplicationRunner {
             User admin = new User("admin", "admin",
                     "Андрей", "Андреевич", 21,
                     "andrey@mail.ru", adminRoles);
-            userService.saveUser(admin);
-        }
-
-        if (userService.findByUsername("a") == null) {
-            Set<Role> userRoles = new HashSet<>();
-            userRoles.add(userRole);
-            User admin = new User("a", "a",
-                    "a", "a", 30,
-                    "a@mail.ru", userRoles);
             userService.saveUser(admin);
         }
     }
